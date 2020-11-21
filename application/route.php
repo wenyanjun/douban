@@ -13,6 +13,9 @@ use think\Route;
 
 // 首页
 Route::get('/','index/Index/index');
+Route::get('/playing','index/Index/playing');
+Route::get('/showing','index/Index/showing');
+
 // search 搜索
 Route::get("search",'index/Index/Search');
 // top250

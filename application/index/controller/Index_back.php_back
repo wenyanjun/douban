@@ -77,8 +77,8 @@ class Index
     Count:搜索结果数
     Data:[[Id,Img,Rating],...]
     */
-    public function Search($q, $page = 0){
-
+    public function Search($q, $page = 0)
+    {
         if ($page <=0 ) $page = 0;
         $SearchUrl = 'https://m.douban.com/j/search/?q=' . $q . '&t=movie&p=' . $page;
         $data = json_decode(self::http_get($SearchUrl), true);
@@ -99,8 +99,23 @@ class Index
                 'rating'=>$rating
             ];
         })->all();
-        $obj = array('total'=>$count,'limit'=>$limit,'page'=>$page,'subject'=>$data);
-        return json_success($obj);
+
+        return;
+        preg_match_all('#<span class="subject-title">(.*)<\/span>#', $ApiData->html, $ReturnName);
+        preg_match_all('#<img src="(.*)"\/>#', $ApiData->html, $ReturnImg);
+        preg_match_all('#\/movie\/subject\/(.*)\/">#', $ApiData->html, $ReturnId);
+        preg_match_all('#<span>(.*)<\/span>#', $ApiData->html, $ReturnRating);
+        $searchData = array();
+        for ($x = 0; $x < count($ReturnId[1]); $x++) {
+            $obj = array();
+            $obj['order'] = 10 * $page + $x;
+            $obj['id'] = $ReturnId[1][$x];
+            $obj['name'] = $ReturnName[1][$x];
+            $obj['img'] = $ReturnImg[1][$x];
+            $obj['rating'] = $ReturnRating[1][$x];
+            array_push($searchData, $obj);
+        }
+        return json_success($searchData);
     }
     // 名人搜索
     public function People($q){
@@ -344,9 +359,10 @@ class Index
             $returnData[$i]['rank'] = $Rank[1][$i];
             $returnData[$i]['img'] = $preg[6][$i];
         }
-        $obj = array('total'=>250,'limit'=>25,'page'=>$page,'subject'=>$returnData);
-        return json_success($obj);
+        return json_success($returnData);
     }
+
+
     /*
         https://www.douban.com/link2/?url=
         http://www.douban.com/link2/?url=
