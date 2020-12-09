@@ -21,9 +21,11 @@ Route::get("search",'index/Index/Search');
 // top250
 Route::get('top250','index/Index/top250');
 // info 影片信息
-Route::get("info",'index/Index/IdInfo');
+Route::get("info",'index/Index/Info');
 // review 影片评论
 Route::get("review", "index/Index/IdReviews");
+
+
 
 // 名人介绍
 Route::get("celebrity",'index/Index/Get_celebrity');

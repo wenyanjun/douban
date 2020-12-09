@@ -13,7 +13,41 @@ class Index
     public function index(){
         return '简书关注coderYJ 欢迎加QQ群讨论277030213';
     }
+    // top250
+    public function top250($page=0)
+    {
+        if ($page <=0 ) $page = 0;
+        $page_start = $page * 25;
+        $url = 'https://movie.douban.com/top250?start=' . $page_start;
+        $ql = QueryList::getInstance();
+        $ql = $ql->get($url);
+        $data = $ql->find(".grid_view")->children("li")->map(function ($item){
+            $id = $item->find('.pic a')->href;
+            preg_match('#subject/([\d\D]*?)/#',$id, $ids);
+            $img = $item->find(".pic img")->attr('src');
+            $info = $item->find(".info");
+            $name = $info->find('.title')->eq(0)->text();
+            $descript = $info->find('.bd p')->text();
+            $index = strpos($descript, '主');
+            $s1 = substr($descript, 0, $index);
+            // php中一个汉字占用三个字节
+            $s1= substr($s1, 7);
+            $director = trim($s1);
+            $star = $info->find('.bd .rating_num')->text();
+            $quote = $info->find('.bd .inq')->text();
+            return [
+                'id' => $ids[1],
+                'img' => $img,
+                'name'=>$name,
+                'director'=>$director,
+                'star'=>$star,
+                'quote'=>$quote
+            ];
+        })->all();
 
+        $obj = array('total'=>250,'limit'=>25,'page'=>$page,'subject'=>$data);
+        return json_success($obj);
+    }
     // 正在上映
     public function playing($city='guangzhou'){
         $url = "https://movie.douban.com/cinema/nowplaying/$city/";
@@ -111,63 +145,46 @@ class Index
     }
 
     // 详情
-    public function IdInfo($id)
+    public function Info($id)
     {
-        $IdUrl = 'https://movie.douban.com/subject/' . $id . '/';
-        $UrlData = self::http_get($IdUrl);
-        $ReturnData['info'] = self::IdInfoArr($UrlData);
+        $url = 'https://movie.douban.com/subject/' . $id . '/';
+        $ql = QueryList::getInstance();
+        $ql = $ql->get($url);
+        $title = $ql->find("#content h1 span")->eq(0)->text();
+        // 图片
+        $img = $ql->find("#mainpic img")->attr('src');
+        // 导演
+        $director = $ql->find("#info>span")->eq(0)->find('.attrs')->text();
+        // 编剧
+        $scriptwriter= $ql->find("#info>span")->eq(1)->find('.attrs')->texts();
+        // 主演
+        $actor = $ql->find("#info .actor")->find('.attrs')->texts();
+        // 地区
+        //$region = $ql->find("#info>.pl")->eq(1)->newInstance(null);
+        // 类型
+        $type = $ql->find("#info>span[property='v:genre']")->texts();
+        // 上映时间
+        $date = $ql->find("#info>span[property=\"v:initialReleaseDate\"]")->texts();
+        // 市场
+        $runtime = $ql->find("#info>span[property=\"v:runtime\"]")->text();
+        // 评分
+        $rating = $ql->find("#interest_sectl .rating_num")->text();
+        // 描述
+        $summary = $ql->find("#link-report span")->text();
 
-        $ReturnData['info'] = array_merge(['id' => $id], $ReturnData['info']);
-
-        $ReturnData['url'] = self::GetEpisodeUrl($UrlData);
-        $ReturnData['recommend'] = self::Get_recommen_dations($UrlData);
-//        var_dump($ReturnData);
-        return json_success($ReturnData);
-    }
-    // 评论数组
-    public function IdInfoArr($UrlData)
-    {
-        preg_match_all('#"name": "([\s\S]*?)",#', $UrlData, $PlayName);
-        preg_match_all('#<span property="v:genre">([\s\S]*?)<\/span>#', $UrlData, $PlayGenre);
-        preg_match_all('#"datePublished": "([\s\S]*?)",#', $UrlData, $PlayDatapublish);
-        preg_match_all('#property="v:average">([\s\S]*?)<\/strong>#', $UrlData, $PlayRating);
-        preg_match_all('#"image": "([\s\S]*?)",#', $UrlData, $PlayImg);
-        preg_match_all('#<a href="/celebrity/(.*?)\/" rel="v:starring">([\s\S]*?)<\/a>#', $UrlData, $PlayActor);
-        preg_match_all('#<a href="/celebrity/(.*?)\/" rel="v:directedBy">([\s\S]*?)<\/a>#', $UrlData, $PlayDirector);
-        preg_match_all('#<span property="v:votes">([\s\S]*?)<\/span>#', $UrlData, $PlayVotes);
-        preg_match_all('#<span class="year">([\s\S]*?)<\/span>#', $UrlData, $PlayYear);
-        //preg_match_all('#<span property="v:runtime" content="([\s\S]*?)">#', $UrlData, $PlayRuntime);
-        if (strpos($UrlData, '<span class="all hidden">') !== false) {
-            preg_match_all('#<span class="all hidden">([\s\S]*?)<\/span>#', $UrlData, $PlayDesc);
-        } else {
-            preg_match_all('#<span property="v:summary" class="">([\s\S]*?)<\/span>#', $UrlData, $PlayDesc);
-        }
-        for ($i = 0; $i < count($PlayActor[1]); $i++) {
-            $Play_Actor[$i]['id'] = $PlayActor[1][$i];
-            $Play_Actor[$i]['name'] = $PlayActor[2][$i];
-        }
-        for ($i = 0; $i < count($PlayDirector[1]); $i++) {
-            $Play_Director[$i]['id'] = $PlayDirector[1][$i];
-            $Play_Director[$i]['name'] = $PlayDirector[2][$i];
-        }
-        $IdInfoData['name'] = $PlayName[1][0];
-        $des = trim($PlayDesc[1][0]);
-        $des=preg_replace('/\s+/','',$des);
-        $des = str_replace(array("\r\n", "\r", "\n"), "", $des);
-//        preg_replace('/(\n)/',',',$des);
-//        echo $des;
-        $IdInfoData['PlayDesc'] =$des;
-
-        $IdInfoData['datePublished'] = $PlayDatapublish[1][0];
-        $IdInfoData['genre'] = $PlayGenre[1];
-        $IdInfoData['rating'] = floatval($PlayRating[1][0]);
-        $IdInfoData['playVotes'] = $PlayVotes[1][0];
-        $IdInfoData['playImg'] = $PlayImg[1][0];
-        $IdInfoData['PlayYear'] = $PlayYear[1][0];
-        $IdInfoData['playActor'] = $Play_Actor;
-        $IdInfoData['director'] = $Play_Director;
-
-        return $IdInfoData;
+        $data = array(
+            'title'=>$title,
+            'img'=>$img,
+            'director'=>$director,
+            'scriptwriter'=>$scriptwriter,
+            'actor'=>$actor,
+            'type'=>$type,
+            'date'=>$date,
+            'runtime'=>$runtime,
+            'rating'=>$rating,
+            'summary'=>$summary
+        );
+        return json_success($data);
     }
 
     public function GetEpisodeUrl($UrlData)
@@ -246,22 +263,30 @@ class Index
     public function IdReviews($id, $page = 0)
     {
         if ($page < 0) $page = 0;
-        $IdReviewsUrl = 'https://movie.douban.com/subject/' . $id . '/comments?sort=new_score&status=P&limit=20&start=' . $page * 20;
-        $IdReviewsData = self::http_get($IdReviewsUrl);
-        preg_match_all('#<span class="short">([\s\S]*?)<\/span>#', $IdReviewsData, $ReviewsContentList);
-        preg_match_all('#<a title="(.*)" href="#', $IdReviewsData, $ReviewsAvatarList);
-        preg_match_all('#<img src="(.*)" class="" />#', $IdReviewsData, $ReviewsImgList);
-        preg_match_all('#<span class="allstar(.*)0 rating#', $IdReviewsData, $ReviewsRatingList);
-        $count =  count($ReviewsAvatarList[1]);
-        $IdReviewData = array();
-        for ($x = 0; $x < $count; $x++) {
-            $IdReviewData[$x]['order'] = 20 * $page + $x;
-            $IdReviewData[$x]['avatar'] = $ReviewsAvatarList[1][$x];
-            $IdReviewData[$x]['img'] = $ReviewsImgList[1][$x];
-            $IdReviewData[$x]['rating'] = floatval($ReviewsRatingList[1][$x]);
-            $IdReviewData[$x]['content'] = $ReviewsContentList[1][$x];
-        }
-        return json_success($IdReviewData);
+        $url = 'https://movie.douban.com/subject/' . $id . '/comments?sort=new_score&status=P&limit=20&start=' . $page * 20;
+        $ql = QueryList::getInstance();
+        $ql = $ql->get($url);
+        $data = $ql->find('#comments')->children('.comment-item ')->map(function ($item){
+            $avatar = $item->find('.avatar img')->attr('src');
+            $name = $item->find('.comment-info>a')->text();
+            $rating = $item->find('.comment-info .rating')->attr('title');
+            $date = $item->find('.comment-info .comment-time')->text();
+            $content = $item->find('.comment-content .short')->text();
+
+            return [
+                'avatar'=>$avatar,
+                "name"=>$name,
+                'rating'=>$rating,
+                'date'=>$date,
+                'content'=>$content
+            ];
+        })->all();
+        $obj = [
+                'page'=>$page,
+                'limit'=>20,
+                "subject"=>$data
+            ];
+        return json_success($obj);
     }
 
     // tag
@@ -326,27 +351,7 @@ class Index
         }
         return json_success($ReturnData);
     }
-    // top250
-    public function top250($page=0)
-    {
-        if ($page <=0 ) $page = 0;
-        $page_start = $page * 25;
-        $top250Url = 'https://movie.douban.com/top250?start=0' . $page_start;
-        $top250Data = self::http_get($top250Url);
-        preg_match_all('#<em class="">([\s\S]*?)<\/em>([\s\S]*?)<a href="https:\/\/movie.douban.com\/subject\/([\s\S]*?)\/">([\s\S]*?)<img width="100" alt="([\s\S]*?)" src="([\s\S]*?)" class="">#', $top250Data, $preg);
-        preg_match_all('#<span class="rating_num" property="v:average">([\s\S]*?)<\/span>#', $top250Data, $Rank);
-        $count = count($preg[0]);
-        $returnData = array();
-        for ($i = 0; $i < $count; $i++) {
-            $returnData[$i]['order'] = $preg[1][$i];
-            $returnData[$i]['id'] = $preg[3][$i];
-            $returnData[$i]['name'] = $preg[5][$i];
-            $returnData[$i]['rank'] = $Rank[1][$i];
-            $returnData[$i]['img'] = $preg[6][$i];
-        }
-        $obj = array('total'=>250,'limit'=>25,'page'=>$page,'subject'=>$returnData);
-        return json_success($obj);
-    }
+
     /*
         https://www.douban.com/link2/?url=
         http://www.douban.com/link2/?url=
