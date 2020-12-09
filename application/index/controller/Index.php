@@ -394,16 +394,24 @@ class Index
         return json_success($TvArr);
     }
 
-
     // 网络请求
     public function http_get($url)
     {
         $oCurl = curl_init();
+        $ip=mt_rand(11, 191).".".mt_rand(0, 240).".".mt_rand(1, 240).".".mt_rand(1, 240);
+        $header = array(
+            'CLIENT-IP:'.$ip,
+            'X-FORWARDED-FOR:'.$ip,
+        );
+        //构造ip
+        curl_setopt($oCurl, CURLOPT_USERAGENT, 'Baiduspider+(+http://www.baidu.com/search/spider.htm)');
         if (stripos($url, "https://") !== FALSE) {
             curl_setopt($oCurl, CURLOPT_SSL_VERIFYPEER, FALSE);
             curl_setopt($oCurl, CURLOPT_SSL_VERIFYHOST, FALSE);
             curl_setopt($oCurl, CURLOPT_SSLVERSION, 1);
         }
+        //构造IP
+        curl_setopt($oCurl, CURLOPT_HTTPHEADER, array("X-FORWARDED-FOR:".$ip, 'CLIENT-IP:'.$ip));
         curl_setopt($oCurl, CURLOPT_URL, $url);
         curl_setopt($oCurl, CURLOPT_RETURNTRANSFER, 1);
         $sContent = curl_exec($oCurl);
